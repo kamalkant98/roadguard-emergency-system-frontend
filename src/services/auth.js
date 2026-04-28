@@ -21,7 +21,7 @@ export const resendOTP = async (phoneNumber) => {
 };
 
 export const login = async (phoneNumber, pin) => {
-  const response = await api.post('/users/login', { 
+  const response = await api.post('/login', { 
     phone_number: phoneNumber, 
     pin 
   });
@@ -29,7 +29,7 @@ export const login = async (phoneNumber, pin) => {
 };
 
 export const getProfile = async () => {
-  const response = await api.get('/users/profile');
+  const response = await api.get('/profile');
   return response.data.data;
 };
 
