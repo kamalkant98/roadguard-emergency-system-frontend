@@ -1,15 +1,31 @@
-
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { login as loginService, verifyOTP as verifyOTPService, register as registerService, getProfile , resendOTP } from '../services/auth';
-import toast from 'react-hot-toast';
+import React, { createContext, useState, useContext, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  login as loginService,
+  verifyOTP as verifyOTPService,
+  register as registerService,
+  getProfile as getProfileService,
+  resendOTP as resendOTPService,
+  updateProfile as updateProfileService,
+  updateProfilePicture as updateProfilePictureService,
+  updateLocation as updateLocationService,
+  changePassword as changePasswordService,
+  deleteAccount as deleteAccountService,
+  getVehicles as getVehicles,
+  addVehicle as addVehicleService,
+  updateVehicle as updateVehicleService ,
+  deleteVehicle as deleteVehicleService,
+  getNotificationSettings as getNotificationSettingsService,
+  updateNotificationSettings as updateNotificationSettingsService
+} from "../services/auth";
+import toast from "react-hot-toast";
 
 const AuthContext = createContext();
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
+    throw new Error("useAuth must be used within AuthProvider");
   }
   return context;
 };
@@ -17,7 +33,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [token, setToken] = useState(localStorage.getItem("token"));
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -30,11 +46,11 @@ export const AuthProvider = ({ children }) => {
 
   const loadUser = async () => {
     try {
-      const userData = await getProfile();
+      const userData = await getProfileService();
       setUser(userData);
     } catch (error) {
-      console.error('Failed to load user:', error);
-      localStorage.removeItem('token');
+      console.error("Failed to load user:", error);
+      localStorage.removeItem("token");
       setToken(null);
     } finally {
       setLoading(false);
@@ -45,16 +61,16 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await loginService(phoneNumber, pin);
       const { token: authToken, user: userData } = response;
-      
-      localStorage.setItem('token', authToken);
+
+      localStorage.setItem("token", authToken);
       setToken(authToken);
       setUser(userData);
-      
-      toast.success('Login successful!');
-      navigate('/dashboard');
+
+      toast.success("Login successful!");
+      navigate("/dashboard");
       return { success: true };
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Login failed');
+      toast.error(error.response?.data?.message || "Login failed");
       return { success: false, error: error.response?.data?.message };
     }
   };
@@ -62,13 +78,15 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await registerService(userData);
-      toast.success('Registration successful! Please verify your OTP.');
-      navigate('/verify-otp', { state: { phone_number: userData.phone_number } });
+      toast.success("Registration successful! Please verify your OTP.");
+      navigate("/verify-otp", {
+        state: { phone_number: userData.phone_number },
+      });
       return { success: true, data: response };
     } catch (error) {
-        console.log("===========",error.response?.data);
-        
-      toast.error(error.response?.data?.message || 'Registration failed');
+      console.log("===========", error.response?.data);
+
+      toast.error(error.response?.data?.message || "Registration failed");
       return { success: false, error: error.response?.data?.message };
     }
   };
@@ -77,37 +95,90 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await verifyOTPService(phoneNumber, otpCode);
       const { token: authToken, user: userData } = response;
-      
-      localStorage.setItem('token', authToken);
+
+      localStorage.setItem("token", authToken);
       setToken(authToken);
       setUser(userData);
-      
-      toast.success('Phone verified successfully!');
-      navigate('/dashboard');
+
+      toast.success("Phone verified successfully!");
+      navigate("/dashboard");
       return { success: true };
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Verification failed');
+      toast.error(error.response?.data?.message || "Verification failed");
       return { success: false, error: error.response?.data?.message };
     }
   };
 
-  const reSendOTP = async (phoneNumber)=> {
+  const reSendOTP = async (phoneNumber) => {
     try {
-        const response = await resendOTP(phoneNumber);
-        return response;
+      const response = await resendOTPService(phoneNumber);
+      return response;
     } catch (error) {
-        toast.error(error.response?.data?.message || 'Resend failed');
-        return { success: false, error: error.response?.data?.message };
+      toast.error(error.response?.data?.message || "Resend failed");
+      return { success: false, error: error.response?.data?.message };
+    }
+  };
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    setToken(null);
+    setUser(null);
+    toast.success("Logged out successfully");
+    navigate("/login");
+  };
+
+  const getProfile= async() => {
+    try {
+      const userData = await getProfile();
+      setUser(userData);
+    } catch (error) {
+      console.error("Failed to load user:", error);
+      localStorage.removeItem("token");
+      setToken(null);
+    } finally {
+      setLoading(false);
     }
   }
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
-    setUser(null);
-    toast.success('Logged out successfully');
-    navigate('/login');
-  };
+  const updateProfile =() =>{
+    return true;
+  }
+  
+  const updateLocation =() =>{
+    return true;
+  }
+
+  const changePassword =() =>{
+
+  }
+
+  const deleteAccount=() =>{
+
+  }
+
+  const getVehicles= () =>{
+
+  }
+
+  const addVehicle =() =>{
+
+  }
+
+  const updateVehicle = () => {
+
+  }
+
+  const deleteVehicle= () => {
+
+  }
+
+  const getNotificationSettings=()=>{
+
+  }
+
+  const updateNotificationSettings=()=>{
+
+  }
 
   const value = {
     user,
@@ -117,12 +188,19 @@ export const AuthProvider = ({ children }) => {
     verifyOTP,
     logout,
     reSendOTP,
+    getProfile,
+    updateProfile,
+    updateLocation,
+    changePassword,
+    deleteAccount,
+    getVehicles,
+    addVehicle,
+    updateVehicle,
+    deleteVehicle,
+    getNotificationSettings,
+    updateNotificationSettings,
     isAuthenticated: !!token,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
