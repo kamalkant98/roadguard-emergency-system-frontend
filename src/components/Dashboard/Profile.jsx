@@ -361,7 +361,7 @@ const DeleteAccountDialog = ({ open, onClose, onConfirm }) => {
 
 const Profile = () => {
   const { user, logout } = useAuth();
-  const { showLoading, hideLoading } = useLoading();
+  const { showLoading, hideLoading } = {} // useLoading();
   const theme = useTheme();
   const [tabValue, setTabValue] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
