@@ -140,7 +140,14 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  const updateProfile =() =>{
+  const updateProfile = async(data) =>{
+    try {
+      const response = await updateProfileService(data);
+      return response;
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Resend failed");
+      return { success: false, error: error.response?.data?.message };
+    }
     return true;
   }
   

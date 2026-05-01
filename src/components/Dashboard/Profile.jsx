@@ -1,1106 +1,973 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
-  Box,
   Container,
-  Paper,
-  Typography,
-  TextField,
-  Button,
-  Avatar,
-  Grid,
-  Divider,
+  Row,
+  Col,
   Card,
-  CardContent,
-  IconButton,
-  Alert,
-  Snackbar,
-  Tabs,
-  Tab,
-  Chip,
-  Stack,
-  useTheme,
-  alpha,
-  InputAdornment,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  FormControlLabel,
-  Switch,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  ListItemSecondaryAction,
-  Tooltip,
+  Form,
+  Nav,
   Badge,
-  LinearProgress,
-} from '@mui/material';
-import {
-  Edit as EditIcon,
-  Save as SaveIcon,
-  Cancel as CancelIcon,
-  Phone as PhoneIcon,
-  Email as EmailIcon,
-  LocationOn as LocationIcon,
-  Security as SecurityIcon,
-  Verified as VerifiedIcon,
-  CreditCard as CardIcon,
-  History as HistoryIcon,
-  VpnKey as VpnKeyIcon,
-  Notifications as NotificationsIcon,
-  DarkMode as DarkModeIcon,
-  Language as LanguageIcon,
-  Delete as DeleteIcon,
-  Add as AddIcon,
-  DirectionsCar as CarIcon,
-  Star as StarIcon,
-  Lock as LockIcon,
-  Visibility as VisibilityIcon,
-  VisibilityOff as VisibilityOffIcon,
-} from '@mui/icons-material';
+  Alert,
+  Modal,
+  ButtonGroup
+} from 'react-bootstrap';
+import LoadingWrapper from '../Common/LoadingWrapper';
 import { useAuth } from '../../context/AuthContext';
-import { useLoading } from '../../context/LoadingContext';
-import toast from 'react-hot-toast';
-import { format } from 'date-fns';
 
-// Tab Panel Component
-const TabPanel = ({ children, value, index }) => (
-  <div hidden={value !== index}>
-    {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
-  </div>
-);
-
-// Vehicle Card Component
-const VehicleCard = ({ vehicle, onEdit, onDelete }) => {
-  const theme = useTheme();
+const Profile = () => {
+  const { user, updateUser,updateProfile} = useAuth();
+  const [activeTab, setActiveTab] = useState('personal');
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isSavingVehicle, setIsSavingVehicle] = useState(false);
+  const [isLoadingVehicles, setIsLoadingVehicles] = useState(false);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertVariant, setAlertVariant] = useState('success');
   
-  return (
-    <Card sx={{ mb: 2, position: 'relative' }}>
-      <CardContent>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Avatar sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1) }}>
-              <CarIcon />
-            </Avatar>
-            <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                {vehicle.vehicle_make} {vehicle.vehicle_model}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {vehicle.vehicle_number} • {vehicle.vehicle_year}
-              </Typography>
-              <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
-                <Chip label={vehicle.vehicle_type} size="small" />
-                <Chip label={vehicle.fuel_type} size="small" variant="outlined" />
-                {vehicle.is_default && (
-                  <Chip label="Default" size="small" color="primary" />
-                )}
-              </Stack>
-            </Box>
-          </Box>
-          <Box>
-            <Tooltip title="Edit">
-              <IconButton size="small" onClick={() => onEdit(vehicle)}>
-                <EditIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Delete">
-              <IconButton size="small" color="error" onClick={() => onDelete(vehicle.id)}>
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        </Box>
-      </CardContent>
-    </Card>
-  );
-};
+  // Profile Data State
+  const [profileData, setProfileData] = useState({
+    full_name: user?.full_name || 'John Doe',
+    email: user?.email || 'john@example.com',
+    phone_number: '+91 98765 43210',
+    date_of_birth: '1990-01-01',
+    address: '123 Main Street, Mumbai, India',
+    bio: 'Software developer passionate about building great applications.'
+  });
 
-// Add/Edit Vehicle Dialog
-const VehicleDialog = ({ open, onClose, vehicle, onSave }) => {
-  const {addVehicle } = useAuth();
-  const [formData, setFormData] = useState({
+  // Vehicles State
+  const [vehicles, setVehicles] = useState([
+    {
+      id: 1,
+      vehicle_number: 'MH 04 AB 1234',
+      vehicle_make: 'Toyota',
+      vehicle_model: 'Innova',
+      vehicle_year: 2020,
+      vehicle_type: 'SUV',
+      is_default: true,
+    },
+    {
+      id: 2,
+      vehicle_number: 'MH 02 CD 5678',
+      vehicle_make: 'Honda',
+      vehicle_model: 'City',
+      vehicle_year: 2021,
+      vehicle_type: 'Sedan',
+      is_default: false,
+    }
+  ]);
+
+  // Modal States
+  const [showVehicleModal, setShowVehicleModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
+  
+  // Form States
+  const [vehicleForm, setVehicleForm] = useState({
     vehicle_number: '',
     vehicle_make: '',
     vehicle_model: '',
-    vehicle_year: new Date().getFullYear(),
-    vehicle_type: 'car',
-    fuel_type: 'petrol',
-    color: '',
-    is_default: false,
+    vehicle_year: '',
+    vehicle_type: 'SUV'
   });
-
-  useEffect(() => {
-    if (vehicle) {
-      setFormData(vehicle);
-    } else {
-      setFormData({
-        vehicle_number: '',
-        vehicle_make: '',
-        vehicle_model: '',
-        vehicle_year: new Date().getFullYear(),
-        vehicle_type: 'car',
-        fuel_type: 'petrol',
-        color: '',
-        is_default: false,
-      });
-    }
-  }, [vehicle]);
-
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleSubmit = () => {
-    onSave(formData);
-    onClose();
-  };
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>
-        {vehicle ? 'Edit Vehicle' : 'Add New Vehicle'}
-      </DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ mt: 1 }}>
-          <TextField
-            label="Vehicle Number"
-            name="vehicle_number"
-            value={formData.vehicle_number}
-            onChange={handleChange}
-            fullWidth
-            required
-          />
-          <TextField
-            label="Make"
-            name="vehicle_make"
-            value={formData.vehicle_make}
-            onChange={handleChange}
-            fullWidth
-            required
-          />
-          <TextField
-            label="Model"
-            name="vehicle_model"
-            value={formData.vehicle_model}
-            onChange={handleChange}
-            fullWidth
-            required
-          />
-          <TextField
-            label="Year"
-            name="vehicle_year"
-            type="number"
-            value={formData.vehicle_year}
-            onChange={handleChange}
-            fullWidth
-          />
-          <TextField
-            label="Color"
-            name="color"
-            value={formData.color}
-            onChange={handleChange}
-            fullWidth
-          />
-          <FormControlLabel
-            control={
-              <Switch
-                checked={formData.is_default}
-                onChange={(e) => setFormData({ ...formData, is_default: e.target.checked })}
-              />
-            }
-            label="Set as default vehicle"
-          />
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSubmit} variant="contained">
-          {vehicle ? 'Update' : 'Add'} Vehicle
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-};
-
-// Change Password Dialog
-const ChangePasswordDialog = ({ open, onClose }) => {
-  const [passwords, setPasswords] = useState({
+  
+  const [passwordForm, setPasswordForm] = useState({
     current_password: '',
     new_password: '',
-    confirm_password: '',
+    confirm_password: ''
   });
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
-    setPasswords({
-      ...passwords,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleSubmit = async () => {
-    if (passwords.new_password !== passwords.confirm_password) {
-      toast.error('New passwords do not match');
-      return;
-    }
-    if (passwords.new_password.length < 6) {
-      toast.error('Password must be at least 6 characters');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await changePassword(passwords.current_password, passwords.new_password);
-      toast.success('Password changed successfully');
-      onClose();
-      setPasswords({ current_password: '', new_password: '', confirm_password: '' });
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to change password');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Change Password</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ mt: 1 }}>
-          <TextField
-            label="Current Password"
-            name="current_password"
-            type={showPassword ? 'text' : 'password'}
-            value={passwords.current_password}
-            onChange={handleChange}
-            fullWidth
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton onClick={() => setShowPassword(!showPassword)}>
-                    {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-          />
-          <TextField
-            label="New Password"
-            name="new_password"
-            type={showPassword ? 'text' : 'password'}
-            value={passwords.new_password}
-            onChange={handleChange}
-            fullWidth
-          />
-          <TextField
-            label="Confirm New Password"
-            name="confirm_password"
-            type={showPassword ? 'text' : 'password'}
-            value={passwords.confirm_password}
-            onChange={handleChange}
-            fullWidth
-            error={passwords.new_password !== passwords.confirm_password && passwords.confirm_password !== ''}
-            helperText={
-              passwords.new_password !== passwords.confirm_password && passwords.confirm_password !== ''
-                ? 'Passwords do not match'
-                : ''
-            }
-          />
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSubmit} variant="contained" disabled={loading}>
-          {loading ? 'Changing...' : 'Change Password'}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-};
-
-// Delete Account Dialog
-const DeleteAccountDialog = ({ open, onClose, onConfirm }) => {
-  const [confirmation, setConfirmation] = useState('');
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ color: 'error.main' }}>Delete Account</DialogTitle>
-      <DialogContent>
-        <Alert severity="error" sx={{ mb: 2 }}>
-          Warning: This action is irreversible! All your data will be permanently deleted.
-        </Alert>
-        <Typography variant="body2" gutterBottom>
-          Please type <strong>DELETE</strong> to confirm:
-        </Typography>
-        <TextField
-          fullWidth
-          value={confirmation}
-          onChange={(e) => setConfirmation(e.target.value)}
-          placeholder="Type DELETE here"
-        />
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button 
-          onClick={onConfirm} 
-          variant="contained" 
-          color="error"
-          disabled={confirmation !== 'DELETE'}
-        >
-          Permanently Delete Account
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-};
-
-const Profile = () => {
-  const { user, logout } = useAuth();
-  const { showLoading, hideLoading } = {} // useLoading();
-  const theme = useTheme();
-  const [tabValue, setTabValue] = useState(0);
-  const [isEditing, setIsEditing] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [profileData, setProfileData] = useState({
-    full_name: '',
-    email: '',
-    phone_number: '',
-    emergency_contact_name: '',
-    emergency_contact_phone: '',
-    emergency_contact_relation: '',
-    home_address: '',
-    work_address: '',
-    home_latitude: null,
-    home_longitude: null,
-    work_latitude: null,
-    work_longitude: null,
-  });
-  
-  // Vehicles state
-  const [vehicles, setVehicles] = useState([]);
-  const [vehicleDialogOpen, setVehicleDialogOpen] = useState(false);
-  const [selectedVehicle, setSelectedVehicle] = useState(null);
-  
-  // Settings state
-  const [settings, setSettings] = useState({
-    notifications_enabled: true,
-    language: 'en',
-    dark_mode: false,
-    email_notifications: true,
-    push_notifications: true,
-    sms_notifications: true,
-  });
-  
-  // Dialogs
-  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  
   // Stats
   const [stats, setStats] = useState({
-    totalRequests: 0,
-    completedRequests: 0,
-    averageRating: 0,
-    memberSince: '',
-    totalSpent: 0,
+    totalRequests: 24,
+    completedRequests: 22,
+    averageRating: 4.7,
+    totalSpent: 12500,
   });
 
-  useEffect(() => {
-    loadUserData();
-    loadVehicles();
-    loadSettings();
-    loadStats();
-  }, []);
-
-  const loadUserData = async () => {
-    try {
-      const userData = await getProfile();
-      setProfileData({
-        full_name: userData.full_name || '',
-        email: userData.email || '',
-        phone_number: userData.phone_number || '',
-        emergency_contact_name: userData.emergency_contact_name || '',
-        emergency_contact_phone: userData.emergency_contact_phone || '',
-        emergency_contact_relation: userData.emergency_contact_relation || '',
-        home_address: userData.home_address || '',
-        work_address: userData.work_address || '',
-        home_latitude: userData.home_latitude || null,
-        home_longitude: userData.home_longitude || null,
-        work_latitude: userData.work_latitude || null,
-        work_longitude: userData.work_longitude || null,
-      });
-    } catch (error) {
-      console.error('Failed to load user data:', error);
-      toast.error('Failed to load profile data');
-    }
+  // Show Toast/Alert
+  const showMessage = (message, variant = 'success') => {
+    setAlertMessage(message);
+    setAlertVariant(variant);
+    setShowAlert(true);
+    setTimeout(() => setShowAlert(false), 3000);
   };
 
-  const loadVehicles = async () => {
-    try {
-      const vehiclesData = await getVehicles();
-      setVehicles(vehiclesData);
-    } catch (error) {
-      console.error('Failed to load vehicles:', error);
-    }
-  };
-
-  const loadSettings = async () => {
-    try {
-      const settingsData = await getNotificationSettings();
-      setSettings(settingsData);
-    } catch (error) {
-      console.error('Failed to load settings:', error);
-    }
-  };
-
-  const loadStats = async () => {
-    // Mock stats - replace with actual API call
-    setStats({
-      totalRequests: 24,
-      completedRequests: 22,
-      averageRating: 4.7,
-      memberSince: '2024-01-15',
-      totalSpent: 12500,
-    });
-  };
-
+  // Handle Profile Change
   const handleProfileChange = (e) => {
     setProfileData({
       ...profileData,
-      [e.target.name]: e.target.value,
+      [e.target.name]: e.target.value
     });
   };
 
-  const handleUpdateProfile = async () => {
-    setLoading(true);
-    try {
-      await updateProfile(profileData);
-      toast.success('Profile updated successfully');
+  // Save Profile with Loading
+  const handleSaveProfile = async () => {
+    setIsSaving(true);
+     const formData = new FormData();
+     console.log("formData","======",profileData);
+     const response = await updateProfile(profileData);
+     console.log("=====",response);
+     
+    // Simulate API call
+    setTimeout(() => {
+      showMessage('Profile updated successfully!', 'success');
       setIsEditing(false);
-      await loadUserData();
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to update profile');
-    } finally {
-      setLoading(false);
-    }
+      setIsSaving(false);
+    }, 1500);
   };
 
-  const handleAddVehicle = async (vehicleData) => {
-    try {
-      await addVehicle(vehicleData);
-      toast.success('Vehicle added successfully');
-      await loadVehicles();
-    } catch (error) {
-      toast.error('Failed to add vehicle');
-    }
-  };
-
-  const handleUpdateVehicle = async (vehicleData) => {
-    try {
-      await updateVehicle(vehicleData.id, vehicleData);
-      toast.success('Vehicle updated successfully');
-      await loadVehicles();
-    } catch (error) {
-      toast.error('Failed to update vehicle');
-    }
-  };
-
-  const handleDeleteVehicle = async (vehicleId) => {
-    if (window.confirm('Are you sure you want to delete this vehicle?')) {
-      try {
-        await deleteVehicle(vehicleId);
-        toast.success('Vehicle deleted successfully');
-        await loadVehicles();
-      } catch (error) {
-        toast.error('Failed to delete vehicle');
-      }
-    }
-  };
-
-  const handleSettingChange = (key) => {
-    setSettings({
-      ...settings,
-      [key]: !settings[key],
+  // Handle Vehicle Form Change
+  const handleVehicleChange = (e) => {
+    setVehicleForm({
+      ...vehicleForm,
+      [e.target.name]: e.target.value
     });
-    // Save to API
-    updateNotificationSettings({ [key]: !settings[key] });
   };
 
-  const handleDeleteAccount = async () => {
-    showLoading('Deleting account...');
-    try {
-      await deleteAccount();
-      toast.success('Account deleted successfully');
-      logout();
-    } catch (error) {
-      toast.error('Failed to delete account');
-    } finally {
-      hideLoading();
-      setDeleteDialogOpen(false);
-    }
-  };
-
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const formData = new FormData();
-      formData.append('profile_picture', file);
-      try {
-        await updateProfilePicture(formData);
-        toast.success('Profile picture updated');
-        await loadUserData();
-      } catch (error) {
-        toast.error('Failed to upload image');
+  // Save Vehicle
+  const handleSaveVehicle = async () => {
+    setIsSavingVehicle(true);
+    
+    setTimeout(() => {
+      if (selectedVehicle) {
+        setVehicles(vehicles.map(v => 
+          v.id === selectedVehicle.id ? { ...vehicleForm, id: selectedVehicle.id } : v
+        ));
+        showMessage('Vehicle updated successfully!', 'success');
+      } else {
+        setVehicles([...vehicles, { ...vehicleForm, id: Date.now() }]);
+        showMessage('Vehicle added successfully!', 'success');
       }
+      setShowVehicleModal(false);
+      setSelectedVehicle(null);
+      setVehicleForm({
+        vehicle_number: '',
+        vehicle_make: '',
+        vehicle_model: '',
+        vehicle_year: '',
+        vehicle_type: 'SUV'
+      });
+      setIsSavingVehicle(false);
+    }, 1000);
+  };
+
+  // Edit Vehicle
+  const handleEditVehicle = (vehicle) => {
+    setSelectedVehicle(vehicle);
+    setVehicleForm(vehicle);
+    setShowVehicleModal(true);
+  };
+
+  // Delete Vehicle
+  const handleDeleteVehicle = (vehicleId) => {
+    setVehicles(vehicles.filter(v => v.id !== vehicleId));
+    showMessage('Vehicle deleted successfully!', 'success');
+  };
+
+  // Set Default Vehicle
+  const handleSetDefault = (vehicleId) => {
+    setVehicles(vehicles.map(v => ({
+      ...v,
+      is_default: v.id === vehicleId
+    })));
+    showMessage('Default vehicle updated!', 'success');
+  };
+
+  // Handle Password Change
+  const handleChangePassword = async () => {
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
+      showMessage('Passwords do not match!', 'danger');
+      return;
     }
+    
+    setIsChangingPassword(true);
+    
+    setTimeout(() => {
+      showMessage('Password changed successfully!', 'success');
+      setShowPasswordModal(false);
+      setPasswordForm({
+        current_password: '',
+        new_password: '',
+        confirm_password: ''
+      });
+      setIsChangingPassword(false);
+    }, 1500);
+  };
+
+  // Handle Delete Account
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+    
+    setTimeout(() => {
+      showMessage('Account deletion request submitted.', 'info');
+      setShowDeleteModal(false);
+      setIsDeleting(false);
+    }, 1500);
+  };
+
+  // Load Stats with Loading
+  const loadStats = async () => {
+    setIsLoadingStats(true);
+    setTimeout(() => {
+      setStats({
+        totalRequests: 24,
+        completedRequests: 22,
+        averageRating: 4.7,
+        totalSpent: 12500,
+      });
+      setIsLoadingStats(false);
+    }, 1000);
   };
 
   return (
-    <Container maxWidth="lg">
-      {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
-          My Profile
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Manage your account details, vehicles, and preferences
-        </Typography>
-      </Box>
+    <Container fluid className="p-4">
+      {/* Alert Message */}
+      {showAlert && (
+        <Alert variant={alertVariant} onClose={() => setShowAlert(false)} dismissible className="position-fixed top-0 end-0 m-3" style={{ zIndex: 9999, minWidth: '300px' }}>
+          {alertMessage}
+        </Alert>
+      )}
 
-      <Grid container spacing={3}>
-        {/* Left Column - Profile Summary */}
-        <Grid item xs={12} md={4}>
-          <Card sx={{ borderRadius: 3, overflow: 'visible', position: 'relative' }}>
-            <Box
-              sx={{
-                position: 'relative',
-                height: 120,
-                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-              }}
-            />
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: -6 }}>
-              <Badge
-                overlap="circular"
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                badgeContent={
-                  <Tooltip title="Change photo">
-                    <IconButton
-                      component="label"
-                      sx={{
-                        bgcolor: 'background.paper',
-                        '&:hover': { bgcolor: 'action.hover' },
-                      }}
-                      size="small"
-                    >
-                      <input
-                        type="file"
-                        hidden
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                      />
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                }
-              >
-                <Avatar
-                  sx={{
-                    width: 100,
-                    height: 100,
-                    bgcolor: theme.palette.primary.main,
-                    fontSize: '2.5rem',
-                    border: `4px solid ${theme.palette.background.paper}`,
-                  }}
+      {/* Header with Loading Link */}
+      <div className="text-left mb-5">
+        <h2 className="fw-bold mb-2">My Profile</h2>
+        <p className="text-muted">Manage your account details and preferences</p>
+        {/* <LoadingWrapper 
+          as="a" 
+          href="#"
+          loading={isLoadingStats}
+          loadingText="Refreshing stats..."
+          loadingPosition="right"
+          className="text-decoration-none small"
+          onClick={(e) => {
+            e.preventDefault();
+            loadStats();
+          }}
+        >
+          <i className="bi bi-arrow-repeat me-1"></i>
+          Refresh Stats
+        </LoadingWrapper> */}
+      </div>
+
+      <Row>
+        <Col lg={6} md={6} sm={12}>
+            <Card className="shadow-sm border-0 rounded-4 mb-4">
+            <Card.Body className="text-center p-4">
+              <div className="position-relative d-inline-block mb-3">
+                <div 
+                  className="rounded-circle bg-primary d-flex align-items-center justify-content-center mx-auto text-white"
+                  style={{ width: '100px', height: '100px', fontSize: '2.5rem' }}
                 >
-                  {profileData.full_name?.charAt(0)?.toUpperCase()}
-                </Avatar>
-              </Badge>
-            </Box>
-            <CardContent sx={{ textAlign: 'center', pt: 2 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                {profileData.full_name}
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mt: 0.5 }}>
-                <VerifiedIcon sx={{ fontSize: 16, color: 'success.main' }} />
-                <Typography variant="caption" color="success.main">
+                  {profileData.full_name.charAt(0).toUpperCase()}
+                </div>
+              </div>
+              
+              <h4 className="fw-bold mb-1">{profileData.full_name}</h4>
+              <div className="mb-3">
+                <Badge bg="success" className="me-1">
+                  <i className="bi bi-check-circle-fill me-1"></i>
                   Verified Account
-                </Typography>
-              </Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                Member since {stats.memberSince ? format(new Date(stats.memberSince), 'MMMM yyyy') : 'N/A'}
-              </Typography>
-
-              <Divider sx={{ my: 2 }} />
-
-              <Stack spacing={1.5}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'center' }}>
-                  <PhoneIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
-                  <Typography variant="body2">{profileData.phone_number}</Typography>
-                </Box>
-                {profileData.email && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'center' }}>
-                    <EmailIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
-                    <Typography variant="body2">{profileData.email}</Typography>
-                  </Box>
-                )}
-              </Stack>
-            </CardContent>
+                </Badge>
+              </div>
+              
+              <hr className="my-3" />
+              
+              <div className="text-start">
+                <div className="mb-2">
+                  <i className="bi bi-telephone-fill text-muted me-2"></i>
+                  <span>{profileData.phone_number}</span>
+                </div>
+                <div className="mb-2">
+                  <i className="bi bi-envelope-fill text-muted me-2"></i>
+                  <span>{profileData.email}</span>
+                </div>
+                <div>
+                  <i className="bi bi-geo-alt-fill text-muted me-2"></i>
+                  <span className="small">{profileData.address}</span>
+                </div>
+              </div>
+            </Card.Body>
           </Card>
-
-          {/* Stats Cards */}
-          <Card sx={{ mt: 3, borderRadius: 3 }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-                Activity Stats
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={6}>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary">
-                      Total Requests
-                    </Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                      {stats.totalRequests}
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={6}>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary">
-                      Completed
-                    </Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 700, color: 'success.main' }}>
-                      {stats.completedRequests}
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={6}>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary">
-                      Rating
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                        {stats.averageRating}
-                      </Typography>
-                      <StarIcon sx={{ color: 'warning.main' }} />
-                    </Box>
-                  </Box>
-                </Grid>
-                <Grid item xs={6}>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary">
-                      Total Spent
-                    </Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                      ₹{stats.totalSpent}
-                    </Typography>
-                  </Box>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-        </Grid>
+        </Col>
+        {/* Left Column - Profile Summary */}
+        <Col lg={6} md={6} sm={12} className="mb-4">
+          {/* Quick Stats with Loading Overlay */}
+          <LoadingWrapper 
+            loading={isLoadingStats}
+            overlay={true}
+            loadingText="Loading stats..."
+            overlayColor="rgba(255, 255, 255, 0.9)"
+          >
+            <Card className="shadow-sm border-0 rounded-4">
+              <Card.Body className="p-4">
+                <h6 className="fw-bold mb-3">Quick Stats</h6>
+                <Row>
+                  <Col xs={6} className="mb-3">
+                    <div className="text-muted small">Total Requests</div>
+                    <h3 className="fw-bold mb-0">{stats.totalRequests}</h3>
+                  </Col>
+                  <Col xs={6} className="mb-3">
+                    <div className="text-muted small">Completed</div>
+                    <h3 className="fw-bold mb-0">{stats.completedRequests}</h3>
+                  </Col>
+                  <Col xs={6}>
+                    <div className="text-muted small">Rating</div>
+                    <div className="d-flex align-items-center">
+                      <h3 className="fw-bold mb-0 me-1">{stats.averageRating}</h3>
+                      <i className="bi bi-star-fill text-warning"></i>
+                    </div>
+                  </Col>
+                  <Col xs={6}>
+                    <div className="text-muted small">Total Spent</div>
+                    <h3 className="fw-bold mb-0">₹{stats.totalSpent}</h3>
+                  </Col>
+                </Row>
+              </Card.Body>
+            </Card>
+          </LoadingWrapper>
+        </Col>
 
         {/* Right Column - Tabs */}
-        <Grid item xs={12} md={8}>
-          <Card sx={{ borderRadius: 3 }}>
-            <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2 }}>
-              <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)}>
-                <Tab label="Personal Info" />
-                <Tab label="My Vehicles" />
-                <Tab label="Settings" />
-                <Tab label="Security" />
-              </Tabs>
-            </Box>
-
-            {/* Personal Information Tab */}
-            <TabPanel value={tabValue} index={0}>
-              <Box sx={{ p: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-                  {!isEditing ? (
-                    <Button
-                      startIcon={<EditIcon />}
-                      onClick={() => setIsEditing(true)}
-                      variant="outlined"
-                    >
-                      Edit Profile
-                    </Button>
-                  ) : (
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <Button
-                        startIcon={<CancelIcon />}
-                        onClick={() => {
-                          setIsEditing(false);
-                          loadUserData();
-                        }}
-                        variant="outlined"
-                        color="error"
+        <Col lg={12}>
+          <Card className="shadow-sm border-0 rounded-4">
+            <Card.Header className="bg-white border-0 pt-4 px-4">
+              <Nav variant="tabs" activeKey={activeTab} onSelect={(k) => setActiveTab(k)}>
+                <Nav.Item>
+                  <Nav.Link eventKey="personal">
+                    <i className="bi bi-person me-2"></i>Personal Info
+                  </Nav.Link>
+                </Nav.Item>
+                <Nav.Item>
+                  <Nav.Link eventKey="vehicles">
+                    <i className="bi bi-car-front me-2"></i>Vehicles
+                  </Nav.Link>
+                </Nav.Item>
+                <Nav.Item>
+                  <Nav.Link eventKey="settings">
+                    <i className="bi bi-gear me-2"></i>Settings
+                  </Nav.Link>
+                </Nav.Item>
+                <Nav.Item>
+                  <Nav.Link eventKey="security">
+                    <i className="bi bi-shield-lock me-2"></i>Security
+                  </Nav.Link>
+                </Nav.Item>
+              </Nav>
+            </Card.Header>
+            
+            <Card.Body className="p-4">
+              {/* Personal Info Tab */}
+              {activeTab === 'personal' && (
+                <div>
+                  <div className="d-flex justify-content-end mb-4 gap-2">
+                    {!isEditing ? (
+                      <LoadingWrapper
+                        as="button"
+                        variant="outline-primary"
+                        onClick={() => setIsEditing(true)}
                       >
-                        Cancel
-                      </Button>
-                      <Button
-                        startIcon={<SaveIcon />}
-                        onClick={handleUpdateProfile}
-                        variant="contained"
-                        disabled={loading}
-                      >
-                        {loading ? 'Saving...' : 'Save Changes'}
-                      </Button>
-                    </Box>
-                  )}
-                </Box>
+                        <i className="bi bi-pencil me-2"></i>
+                        Edit Profile
+                      </LoadingWrapper>
+                    ) : (
+                      <>
+                        <LoadingWrapper
+                          as="button"
+                          variant="outline-secondary"
+                          onClick={() => setIsEditing(false)}
+                          disabled={isSaving}
+                        >
+                          <i className="bi bi-x-circle me-2"></i>
+                          Cancel
+                        </LoadingWrapper>
+                        <LoadingWrapper
+                          as="button"
+                          variant="primary"
+                          onClick={handleSaveProfile}
+                          loading={isSaving}
+                          loadingText="Saving..."
+                        >
+                          <i className="bi bi-check-circle me-2"></i>
+                          Save Changes
+                        </LoadingWrapper>
+                      </>
+                    )}
+                  </div>
+                  
+                  <Form>
+                    <Row className="mb-3">
+                      <Col md={4}>
+                        <Form.Group>
+                          <Form.Label>Full Name</Form.Label>
+                          <LoadingWrapper
+                            as="input"
+                            type="text"
+                            name="full_name"
+                            value={profileData.full_name}
+                            onChange={handleProfileChange}
+                            disabled={!isEditing || isSaving}
+                            className="form-control"
+                            loading={isSaving}
+                            loadingPosition="right"
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Group>
+                          <Form.Label>Email</Form.Label>
+                          <Form.Control
+                            type="email"
+                            name="email"
+                            value={profileData.email}
+                            onChange={handleProfileChange}
+                            disabled
+                          />
+                          <Form.Text className="text-muted">
+                            {/* Email cannot be changed */}
+                          </Form.Text>
+                        </Form.Group>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Group>
+                          <Form.Label>Phone Number</Form.Label>
+                          <LoadingWrapper
+                            as="input"
+                            type="tel"
+                            name="phone_number"
+                            value={profileData.phone_number}
+                            onChange={handleProfileChange}
+                            disabled={!isEditing || isSaving}
+                            className="form-control"
+                            loading={isSaving}
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Group>
+                          <Form.Label>Emergency Contact Name</Form.Label>
+                          <LoadingWrapper
+                            as="input"
+                            type="text"
+                            name="emergency_contact_name"
+                            value={profileData.emergency_contact_name}
+                            onChange={handleProfileChange}
+                            disabled={!isEditing || isSaving}
+                            className="form-control"
+                            loading={isSaving}
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Group>
+                          <Form.Label>Emergency Contact Phone</Form.Label>
+                          <LoadingWrapper
+                            as="input"
+                            type="tel"
+                            name="emergency_contact_phone"
+                            value={profileData.emergency_contact_phone}
+                            onChange={handleProfileChange}
+                            disabled={!isEditing || isSaving}
+                            className="form-control"
+                            loading={isSaving}
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Group>
+                          <Form.Label>Emergency Contact Relation</Form.Label>
+                          <LoadingWrapper
+                            as="input"
+                            type="tel"
+                            name="emergency_contact_relation"
+                            value={profileData.emergency_contact_relation}
+                            onChange={handleProfileChange}
+                            disabled={!isEditing || isSaving}
+                            className="form-control"
+                            loading={isSaving}
+                          />
+                        </Form.Group>
+                      </Col>
 
-                <Grid container spacing={2}>
-                  <Grid item xs={12}>
-                    <TextField
-                      label="Full Name"
-                      name="full_name"
-                      value={profileData.full_name}
-                      onChange={handleProfileChange}
-                      disabled={!isEditing}
-                      fullWidth
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      label="Phone Number"
-                      name="phone_number"
-                      value={profileData.phone_number}
-                      disabled
-                      fullWidth
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <PhoneIcon />
-                          </InputAdornment>
-                        ),
+                      <Col md={4}>
+                        <Form.Group>
+                          <Form.Label>Home Address</Form.Label>
+                          <LoadingWrapper
+                            as="input"
+                            type="text"
+                            name="home_address"
+                            value={profileData.home_address}
+                            onChange={handleProfileChange}
+                            disabled={!isEditing || isSaving}
+                            className="form-control"
+                            loading={isSaving}
+                          />
+                        </Form.Group>
+                      </Col>
+
+
+                      <Col md={4}>
+                        <Form.Group>
+                          <Form.Label>Home Latitude</Form.Label>
+                          <LoadingWrapper
+                            as="input"
+                            type="text"
+                            name="home_latitude"
+                            value={profileData.home_latitude}
+                            onChange={handleProfileChange}
+                            disabled={!isEditing || isSaving}
+                            className="form-control"
+                            loading={isSaving}
+                          />
+                        </Form.Group>
+                      </Col>
+
+                      <Col md={4}>
+                        <Form.Group>
+                          <Form.Label>Home Longitude</Form.Label>
+                          <LoadingWrapper
+                            as="input"
+                            type="text"
+                            name="home_longitude"
+                            value={profileData.home_longitude}
+                            onChange={handleProfileChange}
+                            disabled={!isEditing || isSaving}
+                            className="form-control"
+                            loading={isSaving}
+                          />
+                        </Form.Group>
+                      </Col>
+                    </Row>
+                  </Form>
+                </div>
+              )}
+
+              {/* Vehicles Tab */}
+              {activeTab === 'vehicles' && (
+                <div>
+                  <div className="d-flex justify-content-between align-items-center mb-4">
+                    <h5 className="fw-bold mb-0">My Vehicles ({vehicles.length})</h5>
+                    <LoadingWrapper
+                      as="button"
+                      variant="primary"
+                      onClick={() => {
+                        setSelectedVehicle(null);
+                        setVehicleForm({
+                          vehicle_number: '',
+                          vehicle_make: '',
+                          vehicle_model: '',
+                          vehicle_year: '',
+                          vehicle_type: 'SUV'
+                        });
+                        setShowVehicleModal(true);
                       }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      label="Email Address"
-                      name="email"
-                      type="email"
-                      value={profileData.email}
-                      onChange={handleProfileChange}
-                      disabled={!isEditing}
-                      fullWidth
-                      placeholder="your@email.com"
-                    />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <TextField
-                      label="Home Address"
-                      name="home_address"
-                      value={profileData.home_address}
-                      onChange={handleProfileChange}
-                      disabled={!isEditing}
-                      fullWidth
-                      multiline
-                      rows={2}
-                    />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <TextField
-                      label="Work Address"
-                      name="work_address"
-                      value={profileData.work_address}
-                      onChange={handleProfileChange}
-                      disabled={!isEditing}
-                      fullWidth
-                      multiline
-                      rows={2}
-                    />
-                  </Grid>
-                </Grid>
-
-                <Divider sx={{ my: 3 }} />
-
-                <Typography variant="h6" sx={{ mb: 2 }}>
-                  Emergency Contact
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      label="Contact Name"
-                      name="emergency_contact_name"
-                      value={profileData.emergency_contact_name}
-                      onChange={handleProfileChange}
-                      disabled={!isEditing}
-                      fullWidth
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      label="Contact Phone"
-                      name="emergency_contact_phone"
-                      value={profileData.emergency_contact_phone}
-                      onChange={handleProfileChange}
-                      disabled={!isEditing}
-                      fullWidth
-                    />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <TextField
-                      label="Relationship"
-                      name="emergency_contact_relation"
-                      value={profileData.emergency_contact_relation}
-                      onChange={handleProfileChange}
-                      disabled={!isEditing}
-                      fullWidth
-                      placeholder="e.g., Spouse, Parent, Sibling, Friend"
-                    />
-                  </Grid>
-                </Grid>
-              </Box>
-            </TabPanel>
-
-            {/* My Vehicles Tab */}
-            <TabPanel value={tabValue} index={1}>
-              <Box sx={{ p: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                  <Typography variant="h6">My Vehicles</Typography>
-                  <Button
-                    startIcon={<AddIcon />}
-                    variant="contained"
-                    onClick={() => {
-                      setSelectedVehicle(null);
-                      setVehicleDialogOpen(true);
-                    }}
+                    >
+                      <i className="bi bi-plus-circle me-2"></i>
+                      Add Vehicle
+                    </LoadingWrapper>
+                  </div>
+                  
+                  <LoadingWrapper 
+                    loading={isLoadingVehicles}
+                    overlay={true}
+                    loadingText="Loading vehicles..."
                   >
-                    Add Vehicle
-                  </Button>
-                </Box>
+                    {vehicles.length === 0 ? (
+                      <div className="text-center py-5">
+                        <i className="bi bi-car-front" style={{ fontSize: '4rem' }}></i>
+                        <h6 className="mt-3 text-muted">No vehicles added yet</h6>
+                        <LoadingWrapper as="button" variant="outline-primary" className="mt-2">
+                          Add Your First Vehicle
+                        </LoadingWrapper>
+                      </div>
+                    ) : (
+                      vehicles.map(vehicle => (
+                        <Card key={vehicle.id} className="mb-3 shadow-sm">
+                          <Card.Body>
+                            <div className="d-flex justify-content-between align-items-start">
+                              <div className="d-flex">
+                                <div className="me-3">
+                                  <i className="bi bi-car-front" style={{ fontSize: '2rem' }}></i>
+                                </div>
+                                <div>
+                                  <h6 className="fw-bold mb-1">
+                                    {vehicle.vehicle_make} {vehicle.vehicle_model}
+                                  </h6>
+                                  <div className="small text-muted mb-2">
+                                    {vehicle.vehicle_number} • {vehicle.vehicle_year}
+                                  </div>
+                                  <div>
+                                    <Badge bg="secondary" className="me-1">{vehicle.vehicle_type}</Badge>
+                                    {vehicle.is_default && (
+                                      <Badge bg="primary">Default</Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <div>
+                                <ButtonGroup size="sm">
+                                  <LoadingWrapper
+                                    as="button"
+                                    variant="outline-primary"
+                                    onClick={() => handleEditVehicle(vehicle)}
+                                    loading={isSavingVehicle}
+                                    loadingText=""
+                                    showSpinner={true}
+                                    spinnerSize="sm"
+                                  >
+                                    <i className="bi bi-pencil"></i>
+                                  </LoadingWrapper>
+                                  <LoadingWrapper
+                                    as="button"
+                                    variant="outline-danger"
+                                    onClick={() => handleDeleteVehicle(vehicle.id)}
+                                  >
+                                    <i className="bi bi-trash"></i>
+                                  </LoadingWrapper>
+                                </ButtonGroup>
+                              </div>
+                            </div>
+                            {!vehicle.is_default && (
+                              <div className="mt-2 text-end">
+                                <LoadingWrapper
+                                  as="a"
+                                  href="#"
+                                  className="text-decoration-none small"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    handleSetDefault(vehicle.id);
+                                  }}
+                                >
+                                  Set as Default
+                                </LoadingWrapper>
+                              </div>
+                            )}
+                          </Card.Body>
+                        </Card>
+                      ))
+                    )}
+                  </LoadingWrapper>
+                </div>
+              )}
 
-                {vehicles.length === 0 ? (
-                  <Box sx={{ textAlign: 'center', py: 4 }}>
-                    <CarIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
-                    <Typography variant="body1" color="text.secondary">
-                      No vehicles added yet
-                    </Typography>
-                    <Button
-                      variant="outlined"
-                      onClick={() => setVehicleDialogOpen(true)}
-                      sx={{ mt: 2 }}
-                    >
-                      Add Your First Vehicle
-                    </Button>
-                  </Box>
-                ) : (
-                  vehicles.map((vehicle) => (
-                    <VehicleCard
-                      key={vehicle.id}
-                      vehicle={vehicle}
-                      onEdit={(v) => {
-                        setSelectedVehicle(v);
-                        setVehicleDialogOpen(true);
-                      }}
-                      onDelete={handleDeleteVehicle}
-                    />
-                  ))
-                )}
-              </Box>
-            </TabPanel>
+              {/* Settings Tab */}
+              {activeTab === 'settings' && (
+                <div>
+                  <h5 className="fw-bold mb-4">Notification Preferences</h5>
+                  <div className="mb-3">
+                    <div className="d-flex justify-content-between align-items-center py-2">
+                      <div>
+                        <i className="bi bi-bell me-2"></i>
+                        <strong>Push Notifications</strong>
+                        <div className="small text-muted">Receive push notifications</div>
+                      </div>
+                      <Form.Check type="switch" id="push-switch" defaultChecked />
+                    </div>
+                    <hr />
+                    <div className="d-flex justify-content-between align-items-center py-2">
+                      <div>
+                        <i className="bi bi-envelope me-2"></i>
+                        <strong>Email Notifications</strong>
+                        <div className="small text-muted">Receive email updates</div>
+                      </div>
+                      <Form.Check type="switch" id="email-switch" defaultChecked />
+                    </div>
+                    <hr />
+                    <div className="d-flex justify-content-between align-items-center py-2">
+                      <div>
+                        <i className="bi bi-phone me-2"></i>
+                        <strong>SMS Notifications</strong>
+                        <div className="small text-muted">Receive SMS alerts</div>
+                      </div>
+                      <Form.Check type="switch" id="sms-switch" />
+                    </div>
+                  </div>
+                </div>
+              )}
 
-            {/* Settings Tab */}
-            <TabPanel value={tabValue} index={2}>
-              <Box sx={{ p: 2 }}>
-                <Typography variant="h6" sx={{ mb: 2 }}>
-                  Notification Preferences
-                </Typography>
-                <List>
-                  <ListItem>
-                    <ListItemIcon>
-                      <NotificationsIcon />
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary="Push Notifications"
-                      secondary="Receive push notifications for updates"
-                    />
-                    <ListItemSecondaryAction>
-                      <Switch
-                        edge="end"
-                        checked={settings.push_notifications}
-                        onChange={() => handleSettingChange('push_notifications')}
-                      />
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                  <ListItem>
-                    <ListItemIcon>
-                      <EmailIcon />
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary="Email Notifications"
-                      secondary="Receive email updates about your requests"
-                    />
-                    <ListItemSecondaryAction>
-                      <Switch
-                        edge="end"
-                        checked={settings.email_notifications}
-                        onChange={() => handleSettingChange('email_notifications')}
-                      />
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                  <ListItem>
-                    <ListItemIcon>
-                      <PhoneIcon />
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary="SMS Notifications"
-                      secondary="Receive SMS alerts for emergency updates"
-                    />
-                    <ListItemSecondaryAction>
-                      <Switch
-                        edge="end"
-                        checked={settings.sms_notifications}
-                        onChange={() => handleSettingChange('sms_notifications')}
-                      />
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                </List>
-
-                <Divider sx={{ my: 2 }} />
-
-                <Typography variant="h6" sx={{ mb: 2 }}>
-                  Preferences
-                </Typography>
-                <List>
-                  <ListItem>
-                    <ListItemIcon>
-                      <LanguageIcon />
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary="Language"
-                      secondary="Select your preferred language"
-                    />
-                    <ListItemSecondaryAction>
-                      <Button variant="outlined" size="small">
-                        English
-                      </Button>
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                  <ListItem>
-                    <ListItemIcon>
-                      <DarkModeIcon />
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary="Dark Mode"
-                      secondary="Switch between light and dark theme"
-                    />
-                    <ListItemSecondaryAction>
-                      <Switch
-                        edge="end"
-                        checked={settings.dark_mode}
-                        onChange={() => handleSettingChange('dark_mode')}
-                      />
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                </List>
-              </Box>
-            </TabPanel>
-
-            {/* Security Tab */}
-            <TabPanel value={tabValue} index={3}>
-              <Box sx={{ p: 2 }}>
-                <Alert severity="info" sx={{ mb: 3 }}>
-                  Keep your account secure with strong password and regular updates.
-                </Alert>
-
-                <Typography variant="h6" sx={{ mb: 2 }}>
-                  Password & Security
-                </Typography>
-                
-                <List>
-                  <ListItem>
-                    <ListItemIcon>
-                      <VpnKeyIcon />
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary="Change Password"
-                      secondary="Update your password regularly to keep your account secure"
-                    />
-                    <ListItemSecondaryAction>
-                      <Button
-                        variant="outlined"
-                        onClick={() => setPasswordDialogOpen(true)}
+              {/* Security Tab */}
+              {activeTab === 'security' && (
+                <div>
+                  <Alert variant="warning">
+                    <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                    Keep your account secure with strong passwords
+                  </Alert>
+                  
+                  <div className="mb-4">
+                    <div className="d-flex justify-content-between align-items-center py-2">
+                      <div>
+                        <i className="bi bi-key me-2"></i>
+                        <strong>Change Password</strong>
+                        <div className="small text-muted">Update your account password</div>
+                      </div>
+                      <LoadingWrapper
+                        as="button"
+                        variant="outline-primary"
+                        onClick={() => setShowPasswordModal(true)}
                       >
-                        Change
-                      </Button>
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                  <ListItem>
-                    <ListItemIcon>
-                      <LockIcon />
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary="Two-Factor Authentication"
-                      secondary="Add an extra layer of security to your account"
-                    />
-                    <ListItemSecondaryAction>
-                      <Button variant="outlined">
-                        Setup
-                      </Button>
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                </List>
-
-                <Divider sx={{ my: 3 }} />
-
-                <Typography variant="h6" sx={{ mb: 2, color: 'error.main' }}>
-                  Danger Zone
-                </Typography>
-                
-                <Alert severity="error" sx={{ mb: 2 }}>
-                  Once you delete your account, there is no going back. Please be certain.
-                </Alert>
-                
-                <Button
-                  variant="outlined"
-                  color="error"
-                  startIcon={<DeleteIcon />}
-                  onClick={() => setDeleteDialogOpen(true)}
-                >
-                  Delete Account
-                </Button>
-              </Box>
-            </TabPanel>
+                        Change Password
+                      </LoadingWrapper>
+                    </div>
+                  </div>
+                  
+                  <hr className="my-4" />
+                  
+                  <div className="bg-danger bg-opacity-10 p-4 rounded">
+                    <h6 className="text-danger fw-bold mb-3">
+                      <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                      Danger Zone
+                    </h6>
+                    <Alert variant="danger">
+                      This action cannot be undone. This will permanently delete your account.
+                    </Alert>
+                    <LoadingWrapper
+                      as="button"
+                      variant="outline-danger"
+                      onClick={() => setShowDeleteModal(true)}
+                    >
+                      <i className="bi bi-trash me-2"></i>
+                      Delete Account
+                    </LoadingWrapper>
+                  </div>
+                </div>
+              )}
+            </Card.Body>
           </Card>
-        </Grid>
-      </Grid>
+        </Col>
+      </Row>
 
-      {/* Dialogs */}
-      <VehicleDialog
-        open={vehicleDialogOpen}
-        onClose={() => {
-          setVehicleDialogOpen(false);
-          setSelectedVehicle(null);
-        }}
-        vehicle={selectedVehicle}
-        onSave={(data) => {
-          if (selectedVehicle) {
-            handleUpdateVehicle(data);
-          } else {
-            handleAddVehicle(data);
-          }
-        }}
-      />
+      {/* Vehicle Modal */}
+      <Modal show={showVehicleModal} onHide={() => !isSavingVehicle && setShowVehicleModal(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>
+            {selectedVehicle ? 'Edit Vehicle' : 'Add New Vehicle'}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Row>
+              <Col md={6} className="mb-3">
+                <Form.Group>
+                  <Form.Label>Vehicle Number</Form.Label>
+                  <LoadingWrapper
+                    as="input"
+                    type="text"
+                    name="vehicle_number"
+                    value={vehicleForm.vehicle_number}
+                    onChange={handleVehicleChange}
+                    placeholder="e.g., MH 04 AB 1234"
+                    disabled={isSavingVehicle}
+                    className="form-control"
+                    loading={isSavingVehicle}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6} className="mb-3">
+                <Form.Group>
+                  <Form.Label>Vehicle Type</Form.Label>
+                  <LoadingWrapper
+                    as="select"
+                    name="vehicle_type"
+                    value={vehicleForm.vehicle_type}
+                    onChange={handleVehicleChange}
+                    disabled={isSavingVehicle}
+                    className="form-select"
+                    loading={isSavingVehicle}
+                  >
+                    <option value="SUV">SUV</option>
+                    <option value="Sedan">Sedan</option>
+                    <option value="Hatchback">Hatchback</option>
+                    <option value="MUV">MUV</option>
+                    <option value="Coupe">Coupe</option>
+                  </LoadingWrapper>
+                </Form.Group>
+              </Col>
+              <Col md={6} className="mb-3">
+                <Form.Group>
+                  <Form.Label>Make</Form.Label>
+                  <LoadingWrapper
+                    as="input"
+                    type="text"
+                    name="vehicle_make"
+                    value={vehicleForm.vehicle_make}
+                    onChange={handleVehicleChange}
+                    placeholder="e.g., Toyota, Honda"
+                    disabled={isSavingVehicle}
+                    className="form-control"
+                    loading={isSavingVehicle}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6} className="mb-3">
+                <Form.Group>
+                  <Form.Label>Model</Form.Label>
+                  <LoadingWrapper
+                    as="input"
+                    type="text"
+                    name="vehicle_model"
+                    value={vehicleForm.vehicle_model}
+                    onChange={handleVehicleChange}
+                    placeholder="e.g., Innova, City"
+                    disabled={isSavingVehicle}
+                    className="form-control"
+                    loading={isSavingVehicle}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={12} className="mb-3">
+                <Form.Group>
+                  <Form.Label>Year</Form.Label>
+                  <LoadingWrapper
+                    as="input"
+                    type="number"
+                    name="vehicle_year"
+                    value={vehicleForm.vehicle_year}
+                    onChange={handleVehicleChange}
+                    placeholder="e.g., 2020"
+                    min="1990"
+                    max="2024"
+                    disabled={isSavingVehicle}
+                    className="form-control"
+                    loading={isSavingVehicle}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <LoadingWrapper
+            as="button"
+            variant="secondary"
+            onClick={() => setShowVehicleModal(false)}
+            disabled={isSavingVehicle}
+          >
+            Cancel
+          </LoadingWrapper>
+          <LoadingWrapper
+            as="button"
+            variant="primary"
+            onClick={handleSaveVehicle}
+            loading={isSavingVehicle}
+            loadingText={selectedVehicle ? "Updating..." : "Adding..."}
+          >
+            {selectedVehicle ? 'Update Vehicle' : 'Add Vehicle'}
+          </LoadingWrapper>
+        </Modal.Footer>
+      </Modal>
 
-      <ChangePasswordDialog
-        open={passwordDialogOpen}
-        onClose={() => setPasswordDialogOpen(false)}
-      />
+      {/* Password Modal */}
+      <Modal show={showPasswordModal} onHide={() => !isChangingPassword && setShowPasswordModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Change Password</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Current Password</Form.Label>
+              <LoadingWrapper
+                as="input"
+                type="password"
+                value={passwordForm.current_password}
+                onChange={(e) => setPasswordForm({...passwordForm, current_password: e.target.value})}
+                disabled={isChangingPassword}
+                className="form-control"
+                loading={isChangingPassword}
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>New Password</Form.Label>
+              <LoadingWrapper
+                as="input"
+                type="password"
+                value={passwordForm.new_password}
+                onChange={(e) => setPasswordForm({...passwordForm, new_password: e.target.value})}
+                disabled={isChangingPassword}
+                className="form-control"
+                loading={isChangingPassword}
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Confirm New Password</Form.Label>
+              <LoadingWrapper
+                as="input"
+                type="password"
+                value={passwordForm.confirm_password}
+                onChange={(e) => setPasswordForm({...passwordForm, confirm_password: e.target.value})}
+                disabled={isChangingPassword}
+                className="form-control"
+                loading={isChangingPassword}
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <LoadingWrapper
+            as="button"
+            variant="secondary"
+            onClick={() => setShowPasswordModal(false)}
+            disabled={isChangingPassword}
+          >
+            Cancel
+          </LoadingWrapper>
+          <LoadingWrapper
+            as="button"
+            variant="primary"
+            onClick={handleChangePassword}
+            loading={isChangingPassword}
+            loadingText="Changing Password..."
+          >
+            Update Password
+          </LoadingWrapper>
+        </Modal.Footer>
+      </Modal>
 
-      <DeleteAccountDialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-        onConfirm={handleDeleteAccount}
-      />
+      {/* Delete Account Modal */}
+      <Modal show={showDeleteModal} onHide={() => !isDeleting && setShowDeleteModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title className="text-danger">Delete Account</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Alert variant="danger">
+            <strong>Warning!</strong> This action is permanent and cannot be undone!
+          </Alert>
+          <Form.Group>
+            <Form.Label>Type <strong>DELETE</strong> to confirm</Form.Label>
+            <LoadingWrapper
+              as="input"
+              type="text"
+              placeholder="DELETE"
+              disabled={isDeleting}
+              className="form-control"
+              loading={isDeleting}
+            />
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <LoadingWrapper
+            as="button"
+            variant="secondary"
+            onClick={() => setShowDeleteModal(false)}
+            disabled={isDeleting}
+          >
+            Cancel
+          </LoadingWrapper>
+          <LoadingWrapper
+            as="button"
+            variant="danger"
+            onClick={handleDeleteAccount}
+            loading={isDeleting}
+            loadingText="Deleting..."
+          >
+            <i className="bi bi-trash me-2"></i>
+            Delete Account
+          </LoadingWrapper>
+        </Modal.Footer>
+      </Modal>
     </Container>
   );
 };

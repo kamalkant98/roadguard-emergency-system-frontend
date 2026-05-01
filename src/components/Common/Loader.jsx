@@ -8,6 +8,7 @@ import {
   alpha,
 } from '@mui/material';
 import { Build as BuildIcon } from '@mui/icons-material';
+import ElectricCarOutlinedIcon from '@mui/icons-material/ElectricCarOutlined';
 
 // Full screen loader
 export const FullScreenLoader = ({ open = true, text = 'Loading...' }) => {
@@ -52,7 +53,7 @@ export const FullScreenLoader = ({ open = true, text = 'Loading...' }) => {
               justifyContent: 'center',
             }}
           >
-            <BuildIcon
+            <ElectricCarOutlinedIcon
               sx={{
                 fontSize: 28,
                 color: theme.palette.primary.main,
