@@ -11,7 +11,8 @@ import {
   updateLocation as updateLocationService,
   changePassword as changePasswordService,
   deleteAccount as deleteAccountService,
-  getVehicles as getVehicles,
+  getVehicle as getVehicleService,
+  getVehicles as getVehiclesService,
   addVehicle as addVehicleService,
   updateVehicle as updateVehicleService ,
   deleteVehicle as deleteVehicleService,
@@ -129,7 +130,7 @@ export const AuthProvider = ({ children }) => {
 
   const getProfile= async() => {
     try {
-      const userData = await getProfile();
+      const userData = await getProfileService();
       setUser(userData);
     } catch (error) {
       console.error("Failed to load user:", error);
@@ -163,20 +164,53 @@ export const AuthProvider = ({ children }) => {
 
   }
 
-  const getVehicles= () =>{
+  const getVehicles= async () =>{
+    try {
+      const response = await getVehiclesService();
+      return response;
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Something went wrong");
+      return { success: false, error: error.response?.data?.message };
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const getVehicle= () =>{
 
   }
 
-  const addVehicle =() =>{
-
+  const addVehicle = async (vehicleData) =>{
+    try {
+      const response = await addVehicleService(vehicleData);
+      return response;
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Resend failed");
+      return { success: false, error: error.response?.data?.message };
+    }
+    return true;
   }
 
-  const updateVehicle = () => {
-
+  const updateVehicle = async (vehicleId,vehicleData) => {
+    try {
+      const response = await updateVehicleService(vehicleId,vehicleData);
+      return response;
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Resend failed");
+      return { success: false, error: error.response?.data?.message };
+    }
+    return true;
   }
 
-  const deleteVehicle= () => {
-
+  const deleteVehicle= async(vehicleId) => {
+    try {
+      const response = await deleteVehicleService(vehicleId);
+      return response;
+    } catch (error) {
+      toast.error(error.response?.data?.message || error);
+      return { success: false, error: error.response?.data?.message };
+    }
+    return true;
   }
 
   const getNotificationSettings=()=>{
@@ -200,6 +234,8 @@ export const AuthProvider = ({ children }) => {
     updateLocation,
     changePassword,
     deleteAccount,
+
+    getVehicle,
     getVehicles,
     addVehicle,
     updateVehicle,

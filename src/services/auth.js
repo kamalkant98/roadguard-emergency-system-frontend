@@ -1,12 +1,12 @@
 import api from './api';
 
 export const register = async (userData) => {
-  const response = await api.post('/register', userData);
+  const response = await api.post('/users/register', userData);
   return response.data.data;
 };
 
 export const verifyOTP = async (phoneNumber, otpCode) => {
-  const response = await api.post('/verify-otp', { 
+  const response = await api.post('/users/verify-otp', { 
     phone_number: phoneNumber, 
     otp_code: otpCode 
   });
@@ -14,14 +14,14 @@ export const verifyOTP = async (phoneNumber, otpCode) => {
 };
 
 export const resendOTP = async (phoneNumber) => {
-  const response = await api.post('/resend-otp', { 
+  const response = await api.post('/users/resend-otp', { 
     phone_number: phoneNumber 
   });
   return response.data;
 };
 
 export const login = async (phoneNumber, pin) => {
-  const response = await api.post('/login', { 
+  const response = await api.post('/users/login', { 
     phone_number: phoneNumber, 
     pin 
   });
@@ -29,12 +29,12 @@ export const login = async (phoneNumber, pin) => {
 };
 
 export const getProfile = async () => {
-  const response = await api.get('/profile');
+  const response = await api.get('/users/profile');
   return response.data.data;
 };
 
 export const updateProfile = async (profileData) => {
-  const response = await api.put('/profile', profileData);
+  const response = await api.put('/users/profile', profileData);
   return response.data.data;
 };
 
@@ -66,23 +66,28 @@ export const deleteAccount = async () => {
 
 // Vehicles
 export const getVehicles = async () => {
-  const response = await api.get('/users/vehicles');
+  const response = await api.get(`/vehicle/vehicles`);
+  return response.data.data;
+};
+
+export const getVehicle = async () => {
+  const response = await api.get(`/vehicle/${vehicleId}`);
   return response.data.data;
 };
 
 export const addVehicle = async (vehicleData) => {
-  const response = await api.post('/users/vehicles', vehicleData);
-  return response.data.data;
+  const response = await api.post(`/vehicle/create`, vehicleData);
+  return response.data;
 };
 
 export const updateVehicle = async (vehicleId, vehicleData) => {
-  const response = await api.put(`/users/vehicles/${vehicleId}`, vehicleData);
-  return response.data.data;
+  const response = await api.put(`/vehicle/${vehicleId}`, vehicleData);
+  return response.data;
 };
 
 export const deleteVehicle = async (vehicleId) => {
-  const response = await api.delete(`/users/vehicles/${vehicleId}`);
-  return response.data.data;
+  const response = await api.delete(`/vehicle/${vehicleId}`);
+  return response.data;
 };
 
 // Settings
