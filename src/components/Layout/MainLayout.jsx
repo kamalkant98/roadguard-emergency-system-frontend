@@ -57,6 +57,7 @@ import {
   Policy as PolicyIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import { ROLES } from '../../config/roles';
 
 const drawerWidth = 280;
 const collapsedDrawerWidth = 80;
@@ -68,6 +69,29 @@ const menuConfig = [
     icon: <DashboardIcon />,
     path: '/dashboard',
     type: 'single',
+    roles: [ROLES.ADMIN,ROLES.USER]
+  },
+  {
+    text: 'My Account',
+    icon: <PersonIcon />,
+    type: 'parent',
+    children: [
+      { text: 'Profile', icon: <PersonIcon />, path: '/profile' ,roles: [ROLES.ADMIN,ROLES.MECHANIC,ROLES.USER] },
+      { text: 'My Vehicles', icon: <FuelIcon />, path: '/vehicles',roles: [ROLES.ADMIN,ROLES.USER] },
+      { text: 'Saved Locations', icon: <LocationIcon />, path: '/saved-locations' ,roles:[ROLES.ADMIN,ROLES.MECHANIC] },
+      { text: 'Payment Methods', icon: <PaymentIcon />, path: '/payment-methods',roles:[ROLES.ADMIN,ROLES.MECHANIC]},
+      { text: 'Wallet', icon: <WalletIcon />, path: '/wallet' },
+    ],
+  },
+  {
+    text: 'Users',
+    icon: <BuildIcon />,
+    type: 'parent',
+    roles: [ROLES.ADMIN], // ONLY user role
+    children: [
+      { text: 'Users', icon: <CarCrashIcon />, path: '/breakdown/new' },
+      { text: 'Add Users', icon: <SpeedIcon />, path: '/towing' },
+    ],
   },
   {
     text: 'Services',
@@ -81,21 +105,10 @@ const menuConfig = [
     ],
   },
   {
-    text: 'My Account',
-    icon: <PersonIcon />,
-    type: 'parent',
-    children: [
-      { text: 'Profile', icon: <PersonIcon />, path: '/profile' },
-      { text: 'My Vehicles', icon: <FuelIcon />, path: '/vehicles' },
-      { text: 'Saved Locations', icon: <LocationIcon />, path: '/saved-locations' },
-      { text: 'Payment Methods', icon: <PaymentIcon />, path: '/payment-methods' },
-      { text: 'Wallet', icon: <WalletIcon />, path: '/wallet' },
-    ],
-  },
-  {
     text: 'History',
     icon: <HistoryIcon />,
     type: 'parent',
+    roles: [ROLES.ADMIN], // ONLY user role
     children: [
       { text: 'Service History', icon: <ReceiptIcon />, path: '/history' },
       { text: 'Payment History', icon: <PaymentIcon />, path: '/payment-history' },
@@ -106,6 +119,7 @@ const menuConfig = [
     text: 'Support',
     icon: <SupportIcon />,
     type: 'parent',
+    roles: [ROLES.ADMIN], // ONLY user role
     children: [
       { text: 'Help Center', icon: <HelpIcon />, path: '/help' },
       { text: 'Live Chat', icon: <SupportIcon />, path: '/chat' },
@@ -117,6 +131,7 @@ const menuConfig = [
     text: 'Settings',
     icon: <SettingsIcon />,
     type: 'parent',
+    roles: [ROLES.ADMIN], // ONLY user role
     children: [
       { text: 'Account Settings', icon: <SettingsIcon />, path: '/settings' },
       { text: 'Privacy', icon: <PrivacyIcon />, path: '/privacy' },
@@ -133,13 +148,15 @@ const MainLayout = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [notificationAnchor, setNotificationAnchor] = useState(null);
   const [openSubMenus, setOpenSubMenus] = useState({});
-  const { user, logout } = useAuth();
+  const { user, logout,userRole} = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isTablet = useMediaQuery(theme.breakpoints.between('md', 'lg'));
 
+  // console.log("=========userRole",userRole);
+  
   // Auto close drawer on mobile
   useEffect(() => {
     if (isMobile) {
@@ -154,19 +171,67 @@ const MainLayout = () => {
     }
   }, [isMobile, isTablet]);
 
+  // Helper function to check if user has access to a menu item
+  const hasAccess = (itemRoles) => {
+    if (!itemRoles || itemRoles.length === 0) return true;
+    if (!userRole) return false;
+    return itemRoles.includes(userRole);
+  };
+
+
+  // Filter menu items based on user role
+  const getFilteredMenuConfig = (items) => {
+  return items.reduce((filteredItems, item) => {
+    // Check if current item has access
+    const hasItemAccess = hasAccess(item.roles);
+    
+    if (!hasItemAccess) return filteredItems;
+    
+    // If item has children, recursively filter them
+    let filteredChildren = [];
+    if (item.children && item.children.length > 0) {
+      filteredChildren = getFilteredMenuConfig(item.children);
+    }
+    
+    // Only include item if it has access and (no children OR has filtered children)
+    if (hasItemAccess) {
+      filteredItems.push({
+        ...item,
+        children: filteredChildren
+      });
+    }
+    
+    return filteredItems;
+  }, []);
+};
+
+
+  // Filter sub-menu items based on user role
+  const getFilteredChildren = (children) => {
+    if (!children) return [];
+    return children.filter(child => hasAccess(child.roles));
+  };
+
+  const filteredMenuConfig = getFilteredMenuConfig(menuConfig);
+
+  console.log("filteredMenuConfig",filteredMenuConfig);
+  
   // Initialize sub-menu states based on current path
   useEffect(() => {
     const initialOpenState = {};
-    menuConfig.forEach((item) => {
+    
+    filteredMenuConfig.forEach((item) => {
       if (item.type === 'parent') {
-        const isActive = item.children.some((child) => child.path === location.pathname);
+        const filteredChildren = getFilteredChildren(item.children);
+        const isActive = filteredChildren.some((child) => child.path === location.pathname);
         if (isActive) {
           initialOpenState[item.text] = true;
         }
       }
     });
+    
     setOpenSubMenus(initialOpenState);
-  }, [location.pathname]);
+  }, [location.pathname, userRole]); 
 
   const handleDrawerToggle = () => {
     if (collapsed) {
@@ -504,7 +569,7 @@ const MainLayout = () => {
 
       {/* Menu Items */}
       <List sx={{ flex: 1, px: collapsed ? 0.5 : 1, py: 2, overflow: 'auto' }}>
-        {menuConfig.map((item) => renderMenuItem(item))}
+        {filteredMenuConfig.map((item) => renderMenuItem(item))}
       </List>
 
       {/* Footer Menu */}

@@ -26,6 +26,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import TrekkingMap from '../Common/trackerMap' 
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -116,7 +117,7 @@ const Dashboard = () => {
       </Card>
 
       {/* Stats Grid */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
+      {/* <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Requests"
@@ -149,10 +150,10 @@ const Dashboard = () => {
             color={theme.palette.secondary.main}
           />
         </Grid>
-      </Grid>
+      </Grid> */}
 
       {/* Quick Actions */}
-      <Grid container spacing={3}>
+      {/* <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
           <Card sx={{ borderRadius: 3 }}>
             <CardContent>
@@ -233,8 +234,13 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </Grid>
-      </Grid>
+      </Grid> */}
+
+      
+      <TrekkingMap/>
     </Box>
+
+    
   );
 };
 

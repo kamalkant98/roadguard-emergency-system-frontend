@@ -15,9 +15,10 @@ import LoadingWrapper from "../Common/LoadingWrapper";
 import { useAuth } from "../../context/AuthContext";
 import ModeEditIcon from '@mui/icons-material/ModeEdit';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
+import { ROLES } from '../../config/roles';
 
 const Profile = () => {
-  const { user, updateUser, updateProfile,getVehicles , addVehicle ,updateVehicle,deleteVehicle} = useAuth();
+  const { user, updateUser, updateProfile,getVehicles , addVehicle ,updateVehicle,deleteVehicle , userRole} = useAuth();
   const [activeTab, setActiveTab] = useState("personal");
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -29,7 +30,13 @@ const Profile = () => {
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
   const [alertVariant, setAlertVariant] = useState("success");
-
+  
+  const hasAccess = (allowedRoles) => {
+    if (!allowedRoles || allowedRoles.length === 0) return true;
+    if (!userRole) return false;
+    return allowedRoles.includes(userRole);
+  };
+  
   // Profile Data State
   const [profileData, setProfileData] = useState(user);
 
@@ -354,11 +361,14 @@ const Profile = () => {
                     <i className="bi bi-person me-2"></i>Personal Info
                   </Nav.Link>
                 </Nav.Item>
-                <Nav.Item>
-                  <Nav.Link eventKey="vehicles">
-                    <i className="bi bi-car-front me-2"></i>Vehicles
-                  </Nav.Link>
-                </Nav.Item>
+                {hasAccess([ROLES.USER]) && (
+                  <Nav.Item>
+                    <Nav.Link eventKey="vehicles">
+                      <i className="bi bi-car-front me-2"></i>Vehicles
+                    </Nav.Link>
+                  </Nav.Item>
+                )}
+
                 <Nav.Item>
                   <Nav.Link eventKey="settings">
                     <i className="bi bi-gear me-2"></i>Settings
