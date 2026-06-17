@@ -133,7 +133,7 @@ export const AuthProvider = ({ children }) => {
       navigate("/dashboard");
       return { success: true };
     } catch (error) {
-      toast.error(error);
+      toast.error(error.response?.data?.message);
       return { success: false, error: error.response?.data?.message };
     }
   };
