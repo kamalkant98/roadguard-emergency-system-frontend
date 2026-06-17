@@ -133,7 +133,7 @@ export const AuthProvider = ({ children }) => {
       navigate("/dashboard");
       return { success: true };
     } catch (error) {
-      toast.error(error.response?.data?.message || "Login failed");
+      toast.error(error);
       return { success: false, error: error.response?.data?.message };
     }
   };
